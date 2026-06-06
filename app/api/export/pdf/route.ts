@@ -1,0 +1,37 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { PlacesRepository } from '../../../../lib/supabase/repository';
+import { generatePdfBuffer } from '../../../../lib/utils/pdf';
+
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const keyword = searchParams.get('keyword') || '';
+    const location = searchParams.get('location') || '';
+
+    let places = [];
+
+    // Filter by keyword and location if provided, to export the displayed dataset
+    if (keyword && location) {
+      places = await PlacesRepository.getPlacesBySearch(keyword, location);
+    } else {
+      places = await PlacesRepository.getAllPlaces();
+    }
+
+    if (places.length === 0) {
+      return NextResponse.json({ error: 'No places found to export' }, { status: 404 });
+    }
+
+    const buffer = await generatePdfBuffer(places, keyword, location);
+
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="directory_export_${Date.now()}.pdf"`,
+      },
+    });
+  } catch (error: any) {
+    console.error('PDF Export Error:', error);
+    return NextResponse.json({ error: 'Failed to generate PDF file' }, { status: 500 });
+  }
+}
