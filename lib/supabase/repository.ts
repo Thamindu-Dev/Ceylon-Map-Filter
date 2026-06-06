@@ -44,4 +44,23 @@ export class PlacesRepository {
     
     return data || [];
   }
+
+  /**
+   * Fetches places filtered by keyword and location.
+   */
+  static async getPlacesBySearch(keyword: string, location: string): Promise<Place[]> {
+    const { data, error } = await supabase
+      .from('places')
+      .select('*')
+      .ilike('search_keyword', `%${keyword}%`)
+      .ilike('search_location', `%${location}%`)
+      .order('created_at', { ascending: false });
+      
+    if (error) {
+      console.error('Supabase Select Error:', error);
+      throw new Error(`Failed to fetch places by search: ${error.message}`);
+    }
+    
+    return data || [];
+  }
 }
