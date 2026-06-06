@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GeocodingService } from '../../../lib/google/geocoding';
-import { PlacesService } from '../../../lib/google/places';
-import { PlacesRepository } from '../../../lib/supabase/repository';
-import { Place } from '../../../types';
+import { ExtractionOrchestrator } from '../../../lib/services/extraction';
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,39 +19,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Valid radius in meters is required (max 50,000)' }, { status: 400 });
     }
 
-    // 1. Convert location to coordinates
-    const geoResult = await GeocodingService.getCoordinates(location);
-
-    // 2. Search Google Places
-    const placesResult = await PlacesService.searchPlaces(
+    // 1. Perform Deep Search Orchestration
+    // This handles Geocoding, Grid generation, Google Places Search, Pagination, Deduplication, and Database Storage.
+    const searchData = await ExtractionOrchestrator.performDeepSearch(
       keyword,
-      geoResult.latitude,
-      geoResult.longitude,
-      radius,
-      pageToken
+      location,
+      radius
     );
 
-    // 3. Save to database
-    if (placesResult.places.length > 0) {
-      const placesToSave: Place[] = placesResult.places.map(p => ({
-        ...p,
-        search_keyword: keyword,
-        search_location: location
-      }));
-      
-      // Save asynchronously to prevent blocking the response, or await it if strict tracking is needed.
-      // We'll await it to ensure it successfully persists before returning success.
-      await PlacesRepository.savePlaces(placesToSave);
-    }
-
-    // 4. Return results
+    // 2. Return results
     return NextResponse.json({
       success: true,
-      data: {
-        centerCoordinates: geoResult,
-        places: placesResult.places,
-        nextPageToken: placesResult.nextPageToken
-      }
+      data: searchData
     });
 
   } catch (error: any) {
