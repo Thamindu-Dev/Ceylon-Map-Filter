@@ -37,6 +37,13 @@ export default function SearchPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [places, setPlaces] = useState<PlaceResult[]>([]);
+  const [searchMetadata, setSearchMetadata] = useState<{
+    category: string;
+    keyword: string;
+    city: string;
+    radius: number;
+    mode: 'dropdown' | 'map';
+  } | null>(null);
 
   // Derived options based on current selection
   const provinces = useMemo(() => p.getProvinces().map(pr => ({ value: pr, label: pr })), []);
@@ -112,6 +119,7 @@ export default function SearchPage() {
     setPostalCode('');
     setKeyword('');
     setPlaces([]);
+    setSearchMetadata(null);
     setError(null);
   };
 
@@ -129,6 +137,7 @@ export default function SearchPage() {
     setIsLoading(true);
     setError(null);
     setPlaces([]);
+    setSearchMetadata(null);
 
     const searchKeyword = keyword || category;
     
@@ -160,6 +169,15 @@ export default function SearchPage() {
       }
 
       setPlaces(data.data.places);
+      
+      const resolvedCity = data.data.centerCoordinates?.city || (activeTab === 'dropdown' ? city : '');
+      setSearchMetadata({
+        category,
+        keyword,
+        city: resolvedCity,
+        radius,
+        mode: activeTab
+      });
       
       if (data.data.places.length === 0) {
         setError('No places found for this search criteria.');
@@ -336,6 +354,7 @@ export default function SearchPage() {
                           setMarkerPosition(e.detail.latLng);
                         }
                       }}
+                      // @ts-ignore
                       options={{
                         styles: [
                           { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
@@ -363,6 +382,7 @@ export default function SearchPage() {
                           <MapCircle
                             center={markerPosition}
                             radius={radius}
+                            // @ts-ignore
                             options={{
                               fillColor: '#3b82f6',
                               fillOpacity: 0.2,
@@ -400,7 +420,7 @@ export default function SearchPage() {
 
         {/* Results Section */}
         <div className="w-full max-w-6xl transition-all">
-          <ResultsTable places={places} />
+          <ResultsTable places={places} searchMetadata={searchMetadata} />
         </div>
 
       </main>

@@ -1,27 +1,41 @@
+// @ts-ignore
 import pdfMake from 'pdfmake/build/pdfmake.js';
+// @ts-ignore
 import pdfFonts from 'pdfmake/build/vfs_fonts.js';
 import { Place } from '../../types';
 
+const pdfMakeLib = pdfMake && (pdfMake as any).default ? (pdfMake as any).default : pdfMake;
+
 // Inject the virtual file system to use fonts seamlessly on the server
-(pdfMake as any).vfs = pdfFonts.pdfMake.vfs;
+if (pdfMakeLib && pdfFonts) {
+  const vfs = pdfFonts.pdfMake ? pdfFonts.pdfMake.vfs : pdfFonts;
+  pdfMakeLib.vfs = vfs;
+}
+
+import { getExportTitleAndFilename } from './exportNaming';
 
 export const generatePdfBuffer = async (
   places: Place[],
-  keyword: string,
-  location: string
+  metadata?: {
+    category?: string;
+    keyword?: string;
+    city?: string;
+    radius?: number;
+    mode?: 'dropdown' | 'map';
+  } | null
 ): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
     try {
+      const { title } = getExportTitleAndFilename(metadata);
+
       const docDefinition: any = {
         content: [
-          { text: 'Business Directory Extract', style: 'header' },
-          { text: `Search Keyword: ${keyword || 'All'}`, style: 'subheader' },
-          { text: `Search Location: ${location || 'All'}`, style: 'subheader' },
+          { text: title, style: 'header' },
           { text: `Total Records: ${places.length}`, style: 'subheader', margin: [0, 0, 0, 20] },
         ],
         styles: {
-          header: { fontSize: 24, bold: true, margin: [0, 0, 0, 10], color: '#1e3a8a' }, // Deep blue
-          subheader: { fontSize: 14, bold: true, margin: [0, 0, 0, 5], color: '#374151' }, // Gray 700
+          header: { fontSize: 20, bold: true, margin: [0, 0, 0, 10], color: '#1e3a8a' }, // Deep blue
+          subheader: { fontSize: 12, bold: true, margin: [0, 0, 0, 5], color: '#374151' }, // Gray 700
           placeTitle: { fontSize: 16, bold: true, color: '#111827', margin: [0, 15, 0, 5] },
           placeDetails: { fontSize: 12, color: '#4b5563', margin: [0, 2, 0, 2], lineHeight: 1.4 }
         },
@@ -51,7 +65,7 @@ export const generatePdfBuffer = async (
         });
       });
 
-      const pdfDocGenerator = (pdfMake as any).createPdf(docDefinition);
+      const pdfDocGenerator = (pdfMakeLib as any).createPdf(docDefinition);
       
       pdfDocGenerator.getBuffer((buffer: Buffer) => {
         resolve(buffer);

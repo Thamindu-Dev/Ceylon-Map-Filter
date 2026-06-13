@@ -34,6 +34,7 @@ export interface GeocodingResult {
   longitude: number;
   formattedAddress: string;
   viewport?: Viewport;
+  city?: string;
 }
 
 export interface PlaceResult {

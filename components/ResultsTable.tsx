@@ -1,9 +1,12 @@
 import React from 'react';
 import { PlaceResult } from '../types';
 import * as ExcelJS from 'exceljs';
+// @ts-ignore
 import pdfMake from 'pdfmake/build/pdfmake';
+// @ts-ignore
 import pdfFonts from 'pdfmake/build/vfs_fonts';
 import { Button } from './ui/Button';
+import { getExportTitleAndFilename } from '../lib/utils/exportNaming';
 
 // Initialize pdfMake fonts safely
 if (pdfMake && pdfFonts && pdfFonts.pdfMake) {
@@ -13,21 +16,51 @@ if (pdfMake && pdfFonts && pdfFonts.pdfMake) {
   pdfMake.vfs = pdfFonts;
 }
 
-export const ResultsTable = ({ places }: { places: PlaceResult[] }) => {
+interface ResultsTableProps {
+  places: PlaceResult[];
+  searchMetadata?: {
+    category?: string;
+    keyword?: string;
+    city?: string;
+    radius?: number;
+    mode?: 'dropdown' | 'map';
+  } | null;
+}
+
+export const ResultsTable = ({ places, searchMetadata }: ResultsTableProps) => {
   if (!places || places.length === 0) return null;
 
   const handleExportExcel = async () => {
+    const { title, filename } = getExportTitleAndFilename(searchMetadata);
+
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Places');
 
+    // Add title row at row 1
+    const titleRow = worksheet.getRow(1);
+    titleRow.values = [title];
+    titleRow.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF1E3A8A' } }; // Deep blue
+    worksheet.mergeCells('A1:G1');
+    worksheet.getRow(2).values = []; // Empty spacer row
+
+    // Column headers at row 3
+    const headerRow = worksheet.getRow(3);
+    headerRow.values = ['Name', 'Category', 'Address', 'Rating', 'Reviews', 'Phone', 'Website'];
+    headerRow.font = { name: 'Arial', size: 11, bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFE0E0E0' }
+    };
+
     worksheet.columns = [
-      { header: 'Name', key: 'name', width: 30 },
-      { header: 'Category', key: 'category', width: 20 },
-      { header: 'Address', key: 'address', width: 40 },
-      { header: 'Rating', key: 'rating', width: 10 },
-      { header: 'Reviews', key: 'review_count', width: 10 },
-      { header: 'Phone', key: 'phone', width: 20 },
-      { header: 'Website', key: 'website', width: 35 },
+      { key: 'name', width: 30 },
+      { key: 'category', width: 20 },
+      { key: 'address', width: 40 },
+      { key: 'rating', width: 10 },
+      { key: 'review_count', width: 10 },
+      { key: 'phone', width: 20 },
+      { key: 'website', width: 35 },
     ];
 
     places.forEach(place => {
@@ -47,13 +80,15 @@ export const ResultsTable = ({ places }: { places: PlaceResult[] }) => {
     const url = window.URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = 'places_data.xlsx';
+    anchor.download = `${filename}.xlsx`;
     anchor.click();
     window.URL.revokeObjectURL(url);
   };
 
   const handleExportPDF = () => {
-    const tableBody = [
+    const { title, filename } = getExportTitleAndFilename(searchMetadata);
+
+    const tableBody: any[][] = [
       [{ text: 'Name', style: 'tableHeader' }, { text: 'Category', style: 'tableHeader' }, { text: 'Address', style: 'tableHeader' }, { text: 'Rating', style: 'tableHeader' }, { text: 'Phone', style: 'tableHeader' }]
     ];
 
@@ -69,7 +104,7 @@ export const ResultsTable = ({ places }: { places: PlaceResult[] }) => {
 
     const docDefinition = {
       content: [
-        { text: 'Extracted Places Data', style: 'header' },
+        { text: title, style: 'header' },
         {
           table: {
             headerRows: 1,
@@ -92,7 +127,7 @@ export const ResultsTable = ({ places }: { places: PlaceResult[] }) => {
       }
     };
 
-    pdfMake.createPdf(docDefinition as any).download('places_data.pdf');
+    pdfMake.createPdf(docDefinition as any).download(`${filename}.pdf`);
   };
 
   return (

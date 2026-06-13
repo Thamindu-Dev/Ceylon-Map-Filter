@@ -79,6 +79,11 @@ export class ExtractionOrchestrator {
       centerLat = geoResult.latitude;
       centerLng = geoResult.longitude;
 
+      if (!geoResult.city) {
+        const parts = locationName.split(',');
+        geoResult.city = parts[0].trim();
+      }
+
       // Calculate radius from viewport to properly cover the area
       if (geoResult.viewport) {
         const cornerDist = this.calculateDistance(
@@ -94,11 +99,7 @@ export class ExtractionOrchestrator {
       }
       centerLat = latitude;
       centerLng = longitude;
-      geoResult = {
-        latitude: centerLat,
-        longitude: centerLng,
-        formattedAddress: `Map Point (${centerLat.toFixed(4)}, ${centerLng.toFixed(4)})`
-      };
+      geoResult = await GeocodingService.reverseGeocode(centerLat, centerLng);
     }
     
     // 2. Generate search points

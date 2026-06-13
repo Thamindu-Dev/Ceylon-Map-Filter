@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PlacesRepository } from '../../../../lib/supabase/repository';
 import { generatePdfBuffer } from '../../../../lib/utils/pdf';
+import { getExportTitleAndFilename } from '../../../../lib/utils/exportNaming';
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const keyword = searchParams.get('keyword') || '';
     const location = searchParams.get('location') || '';
+    const category = searchParams.get('category') || '';
+    const city = searchParams.get('city') || '';
+    const radiusStr = searchParams.get('radius');
+    const radius = radiusStr ? parseInt(radiusStr, 10) : undefined;
+    const mode = (searchParams.get('mode') as 'dropdown' | 'map') || 'dropdown';
 
     let places = [];
 
@@ -21,13 +27,27 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'No places found to export' }, { status: 404 });
     }
 
-    const buffer = await generatePdfBuffer(places, keyword, location);
+    let resolvedCity = city;
+    if (!resolvedCity && location) {
+      resolvedCity = location.split(',')[0].trim();
+    }
 
-    return new NextResponse(buffer, {
+    const metadata = {
+      category,
+      keyword,
+      city: resolvedCity,
+      radius,
+      mode
+    };
+
+    const { filename } = getExportTitleAndFilename(metadata);
+    const buffer = await generatePdfBuffer(places, metadata);
+
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="directory_export_${Date.now()}.pdf"`,
+        'Content-Disposition': `attachment; filename="${filename}.pdf"`,
       },
     });
   } catch (error: any) {
