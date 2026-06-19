@@ -1,44 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PlacesRepository } from '../../../../lib/supabase/repository';
 import { generatePdfBuffer } from '../../../../lib/utils/pdf';
 import { getExportTitleAndFilename } from '../../../../lib/utils/exportNaming';
+import type { Place } from '../../../../types';
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
-    const keyword = searchParams.get('keyword') || '';
-    const location = searchParams.get('location') || '';
-    const category = searchParams.get('category') || '';
-    const city = searchParams.get('city') || '';
-    const radiusStr = searchParams.get('radius');
-    const radius = radiusStr ? parseInt(radiusStr, 10) : undefined;
-    const mode = (searchParams.get('mode') as 'dropdown' | 'map') || 'dropdown';
-
-    let places = [];
-
-    // Filter by keyword and location if provided, to export the displayed dataset
-    if (keyword && location) {
-      places = await PlacesRepository.getPlacesBySearch(keyword, location);
-    } else {
-      places = await PlacesRepository.getAllPlaces();
-    }
-
-    if (places.length === 0) {
-      return NextResponse.json({ error: 'No places found to export' }, { status: 404 });
-    }
-
-    let resolvedCity = city;
-    if (!resolvedCity && location) {
-      resolvedCity = location.split(',')[0].trim();
-    }
-
-    const metadata = {
-      category,
-      keyword,
-      city: resolvedCity,
-      radius,
-      mode
+    const body = await req.json();
+    const { places, metadata } = body as {
+      places: Place[];
+      metadata?: {
+        category?: string;
+        keyword?: string;
+        city?: string;
+        radius?: number;
+        mode?: 'dropdown' | 'map';
+      };
     };
+
+    if (!Array.isArray(places) || places.length === 0) {
+      return NextResponse.json({ error: 'No places provided for export' }, { status: 400 });
+    }
 
     const { filename } = getExportTitleAndFilename(metadata);
     const buffer = await generatePdfBuffer(places, metadata);
@@ -50,8 +31,8 @@ export async function GET(req: NextRequest) {
         'Content-Disposition': `attachment; filename="${filename}.pdf"`,
       },
     });
-  } catch (error: any) {
-    console.error('PDF Export Error:', error);
+  } catch (error: unknown) {
+    console.error('PDF export error:', error);
     return NextResponse.json({ error: 'Failed to generate PDF file' }, { status: 500 });
   }
 }

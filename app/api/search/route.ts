@@ -1,18 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ExtractionOrchestrator } from '../../../lib/services/extraction';
 
+const MAX_KEYWORD_LENGTH = 100;
+const MAX_LOCATION_LENGTH = 200;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { keyword, location, radius, mode = 'dropdown', latitude, longitude, pageToken } = body;
+    const { keyword, location, radius, mode = 'dropdown', latitude, longitude } = body;
 
-    // Validation
-    if (!keyword || typeof keyword !== 'string') {
+    if (!keyword || typeof keyword !== 'string' || keyword.trim().length === 0) {
       return NextResponse.json({ error: 'Valid keyword string is required' }, { status: 400 });
     }
-    
-    if (mode === 'dropdown' && (!location || typeof location !== 'string')) {
-      return NextResponse.json({ error: 'Valid location string is required for dropdown mode' }, { status: 400 });
+
+    if (keyword.length > MAX_KEYWORD_LENGTH) {
+      return NextResponse.json({ error: `Keyword must not exceed ${MAX_KEYWORD_LENGTH} characters` }, { status: 400 });
+    }
+
+    if (mode === 'dropdown') {
+      if (!location || typeof location !== 'string') {
+        return NextResponse.json({ error: 'Valid location string is required for dropdown mode' }, { status: 400 });
+      }
+      if (location.length > MAX_LOCATION_LENGTH) {
+        return NextResponse.json({ error: `Location must not exceed ${MAX_LOCATION_LENGTH} characters` }, { status: 400 });
+      }
     }
 
     if (mode === 'map' && (typeof latitude !== 'number' || typeof longitude !== 'number')) {
@@ -23,26 +34,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Valid radius in meters is required (max 50,000)' }, { status: 400 });
     }
 
-    // 1. Perform Deep Search Orchestration
     const searchData = await ExtractionOrchestrator.performDeepSearch({
-      keyword,
+      keyword: keyword.trim(),
       locationName: location,
       radiusMeters: radius,
       mode,
       latitude,
-      longitude
+      longitude,
     });
 
-    // 2. Return results
-    return NextResponse.json({
-      success: true,
-      data: searchData
-    });
-
-  } catch (error: any) {
-    console.error('API /api/search Error:', error);
+    return NextResponse.json({ success: true, data: searchData });
+  } catch (error: unknown) {
+    console.error('Search API error:', error);
     return NextResponse.json(
-      { error: error.message || 'An unexpected error occurred during search' },
+      { error: 'An unexpected error occurred. Please try again.' },
       { status: 500 }
     );
   }

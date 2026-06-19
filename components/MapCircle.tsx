@@ -32,3 +32,6 @@ export const MapCircle = forwardRef((props: google.maps.CircleOptions, ref) => {
 
   return null;
 });
+
+MapCircle.displayName = 'MapCircle';
+

@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Select } from '../components/ui/Select';
 import { ResultsTable } from '../components/ResultsTable';
 import { PlaceResult } from '../types';
-import postalService, { p } from 'sl-address';
+import { p } from 'sl-address';
 import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
 import { MapCircle } from '../components/MapCircle';
 
@@ -30,7 +30,7 @@ export default function SearchPage() {
   const [keyword, setKeyword] = useState('');
   
   const [activeTab, setActiveTab] = useState<'dropdown' | 'map'>('dropdown');
-  const [mapCenter, setMapCenter] = useState({ lat: 7.8731, lng: 80.7718 });
+  const [mapCenter] = useState({ lat: 7.8731, lng: 80.7718 });
   const [markerPosition, setMarkerPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [radius, setRadius] = useState<number>(1000);
 
@@ -140,20 +140,22 @@ export default function SearchPage() {
     setSearchMetadata(null);
 
     const searchKeyword = keyword || category;
-    
-    let payload: any = {
-      keyword: searchKeyword,
-      mode: activeTab
-    };
 
-    if (activeTab === 'dropdown') {
-      payload.location = `${city}, ${district}, ${province}, Sri Lanka`;
-      payload.radius = 5000;
-    } else {
-      payload.latitude = markerPosition?.lat;
-      payload.longitude = markerPosition?.lng;
-      payload.radius = radius;
-    }
+    const payload =
+      activeTab === 'dropdown'
+        ? {
+            keyword: searchKeyword,
+            mode: activeTab,
+            location: `${city}, ${district}, ${province}, Sri Lanka`,
+            radius: 5000,
+          }
+        : {
+            keyword: searchKeyword,
+            mode: activeTab,
+            latitude: markerPosition?.lat,
+            longitude: markerPosition?.lng,
+            radius,
+          };
 
     try {
       const response = await fetch('/api/search', {
@@ -182,8 +184,8 @@ export default function SearchPage() {
       if (data.data.places.length === 0) {
         setError('No places found for this search criteria.');
       }
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -354,7 +356,7 @@ export default function SearchPage() {
                           setMarkerPosition(e.detail.latLng);
                         }
                       }}
-                      // @ts-ignore
+                      // @ts-expect-error — options prop not typed in @vis.gl/react-google-maps
                       options={{
                         styles: [
                           { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
@@ -382,7 +384,7 @@ export default function SearchPage() {
                           <MapCircle
                             center={markerPosition}
                             radius={radius}
-                            // @ts-ignore
+                            // @ts-expect-error — options prop not typed in @vis.gl/react-google-maps
                             options={{
                               fillColor: '#3b82f6',
                               fillOpacity: 0.2,

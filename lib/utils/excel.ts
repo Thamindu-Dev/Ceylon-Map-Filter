@@ -17,22 +17,16 @@ export const generateExcelBuffer = async (
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet('Places');
 
-  // Add title row at row 1
   const titleRow = sheet.getRow(1);
   titleRow.values = [title];
-  titleRow.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF1E3A8A' } }; // Deep blue
+  titleRow.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FF1E3A8A' } };
   sheet.mergeCells('A1:H1');
-  sheet.getRow(2).values = []; // Empty spacer row
+  sheet.getRow(2).values = [];
 
-  // Column headers at row 3
   const headerRow = sheet.getRow(3);
   headerRow.values = ['Name', 'Address', 'Phone', 'Website', 'Rating', 'Reviews', 'Latitude', 'Longitude'];
   headerRow.font = { name: 'Arial', size: 11, bold: true };
-  headerRow.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FFE0E0E0' }
-  };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0E0E0' } };
 
   sheet.columns = [
     { key: 'name', width: 30 },
@@ -45,20 +39,18 @@ export const generateExcelBuffer = async (
     { key: 'longitude', width: 15 },
   ];
 
-  places.forEach((place) => {
+  for (const place of places) {
     sheet.addRow({
       name: place.name,
       address: place.address || '',
       phone: place.phone || '',
       website: place.website || '',
-      rating: place.rating || '',
-      review_count: place.review_count || '',
-      latitude: place.latitude || '',
-      longitude: place.longitude || '',
+      rating: place.rating ?? '',
+      review_count: place.review_count ?? '',
+      latitude: place.latitude ?? '',
+      longitude: place.longitude ?? '',
     });
-  });
+  }
 
-  // Next.js Responses work well with ArrayBuffers
-  const buffer = await workbook.xlsx.writeBuffer();
-  return buffer as ArrayBuffer;
+  return workbook.xlsx.writeBuffer() as Promise<ArrayBuffer>;
 };
